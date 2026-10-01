@@ -2,15 +2,22 @@
   "name": "dena-pawna-server",
   "version": "1.0.0",
   "description": "",
+  "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.5",
     "express": "^5.2.1",
+    "firebase-admin": "^14.5.0",
+    "mongodb": "^7.6.0",
+    "mongoose": "^9.10.3",
     "nodemon": "^3.1.14"
   }
 }
