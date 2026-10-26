@@ -1,7 +1,11 @@
 import express from "express";
-import userRoutes from "./routes/user.route.js";
 const app=express();
 import cors from "cors";
+
+
+import userRoutes from "./routes/user.route.js";
+import TransactionRoutes from "./routes/Transaction.route.js"
+
 
 app.use(cors())
 app.use(express.json());
@@ -14,7 +18,7 @@ app.get('/health',(req,res)=>{
 });
 
 app.use('/api/user', userRoutes);
-
+app.use("/api/transactions",TransactionRoutes)
 
 
 
