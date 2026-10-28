@@ -176,4 +176,58 @@ const pairLedger = async (req, res) => {
   })
 };
 
-export { createTransaction, getMyDenaPawaList, pairLedger };
+
+
+const confirmTransaction=async(req,res)=>{
+  const { transactionId } = req.params;
+  const myUserId = req.user._id;
+  const myContact = await Contact.findOne({
+    linkedUserId: myUserId,
+    isSelf: true,
+  });
+  if (!myContact) {
+    return res.status(404).json({ message: "My contact not found" });
+  }
+  const transaction = await Transaction.findById(transactionId);
+  if (!transaction) {
+    return res.status(404).json({ message: "Transaction not found" });
+  }
+  if(transaction.createdBy.toString()===myUserId.toString()){
+    return res.status(403).json({ message: "You are not authorized to confirm this transaction" });
+  }
+  if(transaction.status==="confirmed"){
+    return res.status(400).json({ message: "Transaction is already confirmed" });
+  }
+  transaction.status = "confirmed";
+  await transaction.save();
+  return res.status(200).json({success:true,message:"Transaction confirmed successfully"} );
+}
+
+const deleteTransaction = async (req, res) => {
+  const { transactionId } = req.params;
+  const myUserId = req.user._id;
+const myContact = await Contact.findOne({
+    linkedUserId: myUserId,
+    isSelf: true,
+  });
+
+  const transaction = await Transaction.findById(transactionId);
+  if (!transaction) {
+    return res.status(404).json({ message: "Transaction not found" });
+  }
+  if (transaction.createdBy.equals(myUserId) || !myContact._id.equals(transaction.from) && !myContact._id.equals(transaction.to) ) {
+    return res.status(403).json({ message: "You are not authorized to delete this transaction" });
+  }
+  if(transaction.status==="confirmed"){
+    return res.status(400).json({ message: "Cannot delete a confirmed transaction" });
+  }
+ 
+  await Transaction.findByIdAndUpdate(transactionId, { status: "cancelled" });
+  await ReCalculatePairBalance(transaction.from, transaction.to);
+  return res.status(200).json({ success:true, message: "Transaction deleted successfully" });
+
+}
+
+
+
+export { createTransaction, getMyDenaPawaList, pairLedger,confirmTransaction,deleteTransaction };
