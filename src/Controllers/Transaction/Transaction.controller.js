@@ -92,10 +92,6 @@ const getMyDenaPawaList = async (req, res) => {
   }
 };
 
-
-
-
-
 const pairLedger = async (req, res) => {
   const { contactId } = req.params;
   const myUserId = req.user._id;
@@ -146,39 +142,50 @@ const pairLedger = async (req, res) => {
 
   const entries = transactions.map((txn) => {
     const direction = txn.from.equals(myContact._id) ? "give" : "take";
-    
+
     return {
       ...txn.toObject(),
       createdBy: txn.createdBy,
       direction,
       title: direction === "give" ? "You gave" : "You received",
       delta: direction === "give" ? -txn.amount : txn.amount,
-     
     };
   });
 
-
-
-  const [contactA, contactB] =myContact._id.toString() < otherContact._id.toString() ? [myContact._id, otherContact._id] : [otherContact._id, myContact._id];
-    const record = await PairRecordModel.findOne({ contactA, contactB }).lean();
-    const amount=record?(contactA.equals(myContact._id) ? record.netAmount : -record.netAmount):0;
+  const [contactA, contactB] =
+    myContact._id.toString() < otherContact._id.toString()
+      ? [myContact._id, otherContact._id]
+      : [otherContact._id, myContact._id];
+  const record = await PairRecordModel.findOne({ contactA, contactB }).lean();
+  const amount = record
+    ? contactA.equals(myContact._id)
+      ? record.netAmount
+      : -record.netAmount
+    : 0;
+  const dueDate = record ? record.dueDate : null;
+  const autoReminder = record ? record.autoReminder : false;
 
   return res.status(200).json({
-    person:{name:otherContact.name,email:otherContact.email,_id:otherContact._id,amount},
+    person: {
+      name: otherContact.name,
+      email: otherContact.email,
+      _id: otherContact._id,
+      amount,
+      dueDate,
+      autoReminder,
+    },
     entries,
-    pagination:{
-        totalCount,
-        currentPage: page,
-        totalPages: Math.ceil(totalCount / limit),
-        limit,
-        hasMore: page * limit < totalCount
-    }
-  })
+    pagination: {
+      totalCount,
+      currentPage: page,
+      totalPages: Math.ceil(totalCount / limit),
+      limit,
+      hasMore: page * limit < totalCount,
+    },
+  });
 };
 
-
-
-const confirmTransaction=async(req,res)=>{
+const confirmTransaction = async (req, res) => {
   const { transactionId } = req.params;
   const myUserId = req.user._id;
   const myContact = await Contact.findOne({
@@ -192,21 +199,27 @@ const confirmTransaction=async(req,res)=>{
   if (!transaction) {
     return res.status(404).json({ message: "Transaction not found" });
   }
-  if(transaction.createdBy.toString()===myUserId.toString()){
-    return res.status(403).json({ message: "You are not authorized to confirm this transaction" });
+  if (transaction.createdBy.toString() === myUserId.toString()) {
+    return res
+      .status(403)
+      .json({ message: "You are not authorized to confirm this transaction" });
   }
-  if(transaction.status==="confirmed"){
-    return res.status(400).json({ message: "Transaction is already confirmed" });
+  if (transaction.status === "confirmed") {
+    return res
+      .status(400)
+      .json({ message: "Transaction is already confirmed" });
   }
   transaction.status = "confirmed";
   await transaction.save();
-  return res.status(200).json({success:true,message:"Transaction confirmed successfully"} );
-}
+  return res
+    .status(200)
+    .json({ success: true, message: "Transaction confirmed successfully" });
+};
 
 const deleteTransaction = async (req, res) => {
   const { transactionId } = req.params;
   const myUserId = req.user._id;
-const myContact = await Contact.findOne({
+  const myContact = await Contact.findOne({
     linkedUserId: myUserId,
     isSelf: true,
   });
@@ -215,19 +228,73 @@ const myContact = await Contact.findOne({
   if (!transaction) {
     return res.status(404).json({ message: "Transaction not found" });
   }
-  if (transaction.createdBy.equals(myUserId) || !myContact._id.equals(transaction.from) && !myContact._id.equals(transaction.to) ) {
-    return res.status(403).json({ message: "You are not authorized to delete this transaction" });
+  if (
+    transaction.createdBy.equals(myUserId) ||
+    (!myContact._id.equals(transaction.from) &&
+      !myContact._id.equals(transaction.to))
+  ) {
+    return res
+      .status(403)
+      .json({ message: "You are not authorized to delete this transaction" });
   }
-  if(transaction.status==="confirmed"){
-    return res.status(400).json({ message: "Cannot delete a confirmed transaction" });
+  if (transaction.status === "confirmed") {
+    return res
+      .status(400)
+      .json({ message: "Cannot delete a confirmed transaction" });
   }
- 
+
   await Transaction.findByIdAndUpdate(transactionId, { status: "cancelled" });
   await ReCalculatePairBalance(transaction.from, transaction.to);
-  return res.status(200).json({ success:true, message: "Transaction deleted successfully" });
+  return res
+    .status(200)
+    .json({ success: true, message: "Transaction deleted successfully" });
+};
 
-}
+const toggleAutoReminder = async (req, res) => {
+  const { contactId } = req.params;
+  const myUserId = req.user._id;
 
+  const myContact = await Contact.findOne({
+    linkedUserId: myUserId,
+    isSelf: true,
+  });
+  if (!myContact) {
+    return res.status(404).json({ message: "My contact not found" });
+  }
 
+  const pairRecord = await PairRecordModel.findOne({
+    $or: [
+      { contactA: myContact._id, contactB: contactId },
+      { contactA: contactId, contactB: myContact._id },
+    ],
+  });
+  if (!pairRecord) {
+    return res.status(404).json({ message: "Record not found" });
+  }
+  if (pairRecord.status != "active") {
+    return res
+      .status(400)
+      .json({ message: "Cannot toggle auto reminder for inactive pair" });
+  }
 
-export { createTransaction, getMyDenaPawaList, pairLedger,confirmTransaction,deleteTransaction };
+  const result = await PairRecordModel.findByIdAndUpdate(
+    pairRecord._id,
+    { autoReminder: !pairRecord.autoReminder }
+  );
+  return res
+    .status(200)
+    .json({
+      success: true,
+      message: "Auto reminder toggled successfully",
+      autoReminder: result.autoReminder,
+    });
+};
+
+export {
+  createTransaction,
+  getMyDenaPawaList,
+  pairLedger,
+  confirmTransaction,
+  deleteTransaction,
+  toggleAutoReminder,
+};
