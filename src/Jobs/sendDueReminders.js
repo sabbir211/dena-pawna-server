@@ -19,7 +19,7 @@ const formatAmount = (amount) =>
   });
 
 const run = async () => {
-  await mongoose.connect(process.env.MONGODB_URI,{dbName:process.env.DB_NAME})
+  await mongoose.connect(process.env.MONGODB_URI)
 
   // Today's date in Bangladesh
   const todayStr = new Intl.DateTimeFormat("en-CA", {
