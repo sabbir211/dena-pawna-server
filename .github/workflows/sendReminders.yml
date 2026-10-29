@@ -20,6 +20,6 @@ jobs:
 
       - run: node src/Jobs/sendDueReminders.js
         env:
-          MONGO_URI: ${{ secrets.MONGO_URI }}
+          MONGODB_URI: ${{ secrets.MONGO_URI }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
