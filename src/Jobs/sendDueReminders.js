@@ -2,7 +2,8 @@ import "dotenv/config";
 import mongoose from "mongoose";
 import PairRecord from "../Models/PairRecord.model.js";
 import "../Models/Contact.model.js";
-import sendEmail from "../Utils/sendEmail.js";
+import sendEmail from "../Utils/SendEmail.js";
+
 
 const esc = (s = "") =>
   String(s)
