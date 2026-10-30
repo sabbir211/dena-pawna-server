@@ -279,7 +279,8 @@ const toggleAutoReminder = async (req, res) => {
 
   const result = await PairRecordModel.findByIdAndUpdate(
     pairRecord._id,
-    { autoReminder: !pairRecord.autoReminder }
+    { autoReminder: !pairRecord.autoReminder },
+    { new: true }
   );
   return res
     .status(200)

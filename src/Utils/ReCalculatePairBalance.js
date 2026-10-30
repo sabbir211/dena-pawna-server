@@ -27,9 +27,6 @@ const ReCalculatePairBalance = async (id1, id2) => {
             ],
           },
         },
-        dueDate: {
-          $max: "$dueDate",
-        },
       },
     },
   ]);
@@ -37,10 +34,30 @@ const ReCalculatePairBalance = async (id1, id2) => {
   
   const netAmount = result[0]?.netAmount || 0;
  const status = netAmount === 0 ? "settled" : "active";
+let dueDate = null;
+let settledOn = null;
+if (status === "settled") {
+  settledOn = new Date();
+}
+
+if (status === "active") {
+  const creditor = netAmount > 0 ? contactA : contactB; // the one who is owed money
+  const debtor = netAmount > 0 ? contactB : contactA;
+
+  const lastLoan = await Transaction.findOne({
+    status: { $ne: "cancelled" },
+    from: creditor,
+    to: debtor,
+  })
+    .sort({ createdAt: -1, _id: -1 })
+    .select("dueDate");
+
+  dueDate = lastLoan?.dueDate ?? null;
+}
 
   const newPairRecord = await PairRecord.findOneAndUpdate(
     { contactA, contactB },
-    { netAmount, status, dueDate: result[0]?.dueDate || null },
+    { netAmount, status, dueDate, settledOn },
     { upsert: true, new: true },
   );
   

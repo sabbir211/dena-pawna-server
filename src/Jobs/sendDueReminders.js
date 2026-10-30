@@ -19,7 +19,7 @@ const formatAmount = (amount) =>
   });
 
 const run = async () => {
-  await mongoose.connect(process.env.MONGODB_URI)
+  await mongoose.connect(process.env.MONGODB_URI,{dbName:process.env.DB_NAME})
 
   // Today's date in Bangladesh
   const todayStr = new Intl.DateTimeFormat("en-CA", {
@@ -32,7 +32,38 @@ const run = async () => {
   // Match the entire UTC calendar day stored in PairRecord.dueDate
   const start = new Date(`${todayStr}T00:00:00.000Z`);
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+console.log("Today:", todayStr);
+console.log("DB name:", mongoose.connection.name);
+console.log("Collection:", PairRecord.collection.name);
+console.log("Start:", start.toISOString());
+console.log("End:", end.toISOString());
 
+console.log(
+  "Total PairRecords:",
+  await PairRecord.countDocuments({})
+);
+
+console.log(
+  "Active pairs:",
+  await PairRecord.countDocuments({ status: "active" })
+);
+
+console.log(
+  "Reminder-enabled pairs:",
+  await PairRecord.countDocuments({
+    status: "active",
+    autoReminder: true,
+  })
+);
+
+console.log(
+  "Pairs due today:",
+  await PairRecord.countDocuments({
+    status: "active",
+    autoReminder: true,
+    dueDate: { $gte: start, $lt: end },
+  })
+);
   const pairs = await PairRecord.find({
     status: "active",
     autoReminder: true,

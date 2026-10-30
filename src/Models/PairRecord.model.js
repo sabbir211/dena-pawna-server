@@ -33,7 +33,8 @@ const PairRecordSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    lastReminderOn: { type: String, default: null }
+    lastReminderOn: { type: String, default: null },
+    settledOn: { type: Date, default: null },
   },
   { timestamps: true }
 );
