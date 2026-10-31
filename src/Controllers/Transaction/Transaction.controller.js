@@ -4,6 +4,7 @@ import Contact from "../../Models/Contact.model.js";
 import ReCalculatePairBalance from "../../Utils/ReCalculatePairBalance.js";
 import PairRecordModel from "../../Models/PairRecord.model.js";
 import mongoose from "mongoose";
+import sendEmail from "../../Utils/SendEmail.js";
 
 const createTransaction = async (req, res) => {
   try {
@@ -253,7 +254,6 @@ const deleteTransaction = async (req, res) => {
 const toggleAutoReminder = async (req, res) => {
   const { contactId } = req.params;
   const myUserId = req.user._id;
-
   const myContact = await Contact.findOne({
     linkedUserId: myUserId,
     isSelf: true,
@@ -280,15 +280,63 @@ const toggleAutoReminder = async (req, res) => {
   const result = await PairRecordModel.findByIdAndUpdate(
     pairRecord._id,
     { autoReminder: !pairRecord.autoReminder },
-    { new: true }
+    { new: true },
   );
-  return res
-    .status(200)
-    .json({
-      success: true,
-      message: "Auto reminder toggled successfully",
-      autoReminder: result.autoReminder,
-    });
+  return res.status(200).json({
+    success: true,
+    message: "Auto reminder toggled successfully",
+    autoReminder: result.autoReminder,
+  });
+};
+
+const sendManualReminder = async (req, res) => {
+  const { contactId } = req.params;
+  const { message } = req.body;
+  const myUserId = req.user._id;
+  const myContact = await Contact.findOne({
+    linkedUserId: myUserId,
+    isSelf: true,
+  });
+  if (!myContact) {
+    return res.status(404).json({ message: "My contact not found" });
+  }
+  const pairRecord = await PairRecordModel.findOne({
+    $or: [
+      { contactA: myContact._id, contactB: contactId },
+      { contactA: contactId, contactB: myContact._id },
+    ],
+  }).populate("contactA contactB");
+  if (!pairRecord) {
+    return res.status(404).json({ message: "Record not found" });
+  }
+  if (pairRecord.status != "active") {
+    return res
+      .status(400)
+      .json({ message: "Cannot send reminder for inactive pair" });
+  }
+
+ const info = await sendEmail({
+    to: pairRecord.contactB.email,
+    subject: "Payment Reminder",
+    text:
+      message ||
+      "This is a friendly reminder regarding your pending payment. Please take a moment to review and complete it.",
+
+    replyTo: myContact.email,
+    html: `<p>${message || "This is a friendly reminder regarding your pending payment. Please take a moment to review and complete it."}</p>`,
+  });
+
+  if (!info || !info.messageId) {
+    return res.status(500).json({ message: "Failed to send reminder email" });
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: "Reminder email sent successfully",
+    messageId: info.messageId,
+  });
+
+
 };
 
 export {
@@ -298,4 +346,5 @@ export {
   confirmTransaction,
   deleteTransaction,
   toggleAutoReminder,
+  sendManualReminder,
 };

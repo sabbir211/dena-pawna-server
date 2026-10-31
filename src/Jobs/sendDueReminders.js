@@ -32,7 +32,38 @@ const run = async () => {
   // Match the entire UTC calendar day stored in PairRecord.dueDate
   const start = new Date(`${todayStr}T00:00:00.000Z`);
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+console.log("Today:", todayStr);
+console.log("DB name:", mongoose.connection.name);
+console.log("Collection:", PairRecord.collection.name);
+console.log("Start:", start.toISOString());
+console.log("End:", end.toISOString());
 
+console.log(
+  "Total PairRecords:",
+  await PairRecord.countDocuments({})
+);
+
+console.log(
+  "Active pairs:",
+  await PairRecord.countDocuments({ status: "active" })
+);
+
+console.log(
+  "Reminder-enabled pairs:",
+  await PairRecord.countDocuments({
+    status: "active",
+    autoReminder: true,
+  })
+);
+
+console.log(
+  "Pairs due today:",
+  await PairRecord.countDocuments({
+    status: "active",
+    autoReminder: true,
+    dueDate: { $gte: start, $lt: end },
+  })
+);
   const pairs = await PairRecord.find({
     status: "active",
     autoReminder: true,
@@ -119,18 +150,18 @@ const run = async () => {
 
     const textLines = creditorList.map(
       (creditor) =>
-        `- ${creditor.name}: ৳${formatAmount(creditor.amount)}`
+        `- ${creditor.name}: ${formatAmount(creditor.amount)}`
     );
 
     const htmlLines = creditorList.map(
       (creditor) =>
-        `<li>${esc(creditor.name)}: <strong>৳${formatAmount(
+        `<li>${esc(creditor.name)}: <strong>${formatAmount(
           creditor.amount
         )}</strong></li>`
     );
 
     const subject =
-      "DenaPawna: Your payment reminder for today";
+      `Payment Reminder: ${formatAmount(total)} is due today`;
 
     const text = [
       `Hi ${debtor.name || "there"},`,
@@ -140,7 +171,7 @@ const run = async () => {
       "Payments due today:",
       ...textLines,
       "",
-      `Total amount due today: ৳${formatAmount(total)}`,
+      `Total amount due today: ${formatAmount(total)}`,
       "",
       "Please settle your payments on time.",
       "",
@@ -160,7 +191,7 @@ const run = async () => {
 
       <p>
         <strong>
-          Total amount due today: ৳${formatAmount(total)}
+          Total amount due today: ${formatAmount(total)}
         </strong>
       </p>
 
@@ -195,7 +226,7 @@ const run = async () => {
 
       console.log(
         `Email sent to ${debtorEmail}: ` +
-        `৳${formatAmount(total)} across ` +
+        `${formatAmount(total)} across ` +
         `${creditorList.length} creditor(s). ` +
         `Marked ${result.modifiedCount} pair(s).`
       );
